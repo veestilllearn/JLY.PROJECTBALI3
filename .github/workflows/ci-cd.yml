@@ -1,0 +1,72 @@
+name: JLY.PROJECTBALI3 CI/CD
+
+on:
+  push:
+    branches: [main]
+
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  security:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CodeQL Scan
+        uses: github/codeql-action/init@v3
+        with:
+          languages: php,javascript
+
+      - name: Analyze Code
+        uses: github/codeql-action/analyze@v3
+
+      - name: Trivy Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+
+      - name: Secret Detection
+        uses: gitleaks/gitleaks-action@v2
+
+  build:
+
+    runs-on: ubuntu-latest
+    needs: security
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build -t jly-projectbali3 .
+
+  test:
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Container
+        run: |
+          docker build -t jly-projectbali3 .
+          docker run -d -p 8080:80 --name jly-projectbali3 jly-projectbali3
+
+      - name: Health Check
+        run: |
+          sleep 15
+          curl http://localhost:8080/health.php
+
+  deploy:
+
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Deploy
+        run: echo "JLY.PROJECTBALI3 deployed successfully"
