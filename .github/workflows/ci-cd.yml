@@ -4,10 +4,35 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  security:
+    name: Security Scan
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+
+      - name: Run Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: security
 
     steps:
       - name: Checkout Repository
@@ -16,20 +41,8 @@ jobs:
       - name: Build Docker Image
         run: docker build -t jly-projectbali3 .
 
-  security:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Run Trivy Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: fs
-          scan-ref: .
-
   test:
+    name: Validate Configuration
     runs-on: ubuntu-latest
     needs: build
 
