@@ -12,6 +12,9 @@ services:
 
     restart: always
 
+    volumes:
+      - ./logs:/var/log/apache2
+
   mysql:
     image: mysql:8.0
     container_name: jly-mysql
