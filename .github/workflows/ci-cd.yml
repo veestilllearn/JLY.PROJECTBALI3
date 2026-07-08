@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@master
@@ -37,6 +39,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build Docker Image
         run: docker build -t jly-projectbali3 .
@@ -49,6 +53,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate Docker Compose
         run: docker compose config
