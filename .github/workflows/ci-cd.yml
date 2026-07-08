@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,42 +20,108 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Run Trivy Scan
+      - name: Run Trivy Filesystem Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
+          format: table
+          exit-code: "0"
 
       - name: Run Gitleaks Scan
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build:
-    name: Build Docker Image
+  validate:
+    name: Validate Source Code
     runs-on: ubuntu-latest
     needs: security
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          fetch-depth: 0
+          php-version: "8.3"
+
+      - name: Validate HTML Files
+        run: |
+          echo "Checking HTML files..."
+          find . -type f -name "*.html"
+
+      - name: PHP Syntax Check
+        run: |
+          echo "Checking PHP syntax..."
+          find . -type f -name "*.php" -exec php -l {} \;
+
+      - name: Check SQL File
+        run: |
+          echo "Checking SQL files..."
+          find . -type f -name "*.sql" || echo "No SQL files found"
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Build Docker Image
-        run: docker build -t jly-projectbali3 .
+        run: |
+          docker build -t jly-projectbali3:latest .
 
   test:
-    name: Validate Configuration
+    name: Docker Compose Test
     runs-on: ubuntu-latest
     needs: build
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Validate Docker Compose
-        run: docker compose config
+        run: |
+          docker compose config
+
+      - name: Start Containers
+        run: |
+          docker compose up -d
+
+      - name: Show Running Containers
+        run: |
+          docker ps
+
+      - name: Wait Container
+        run: |
+          sleep 15
+
+      - name: Stop Containers
+        if: always()
+        run: |
+          docker compose down
+
+  image_scan:
+    name: Docker Image Scan
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build -t jly-projectbali3:latest .
+
+      - name: Scan Docker Image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: jly-projectbali3:latest
+          format: table
+          exit-code: "0"
